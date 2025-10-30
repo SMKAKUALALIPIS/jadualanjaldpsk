@@ -1,3 +1,10 @@
+
+## Alternative: Single File Version (if you're still having issues)
+
+If you continue to have deployment issues, here's a single HTML file version that contains everything:
+
+### single-file-index.html
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
