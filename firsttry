@@ -9,6 +9,7 @@
             --primary: #3498db;
             --secondary: #2ecc71;
             --danger: #e74c3c;
+            --warning: #f39c12;
             --light: #f5f5f5;
             --dark: #333;
             --shadow: 0 2px 5px rgba(0,0,0,0.1);
@@ -150,6 +151,10 @@
         
         .assigned {
             background-color: #d4edda;
+        }
+        
+        .consecutive {
+            background-color: #c3e6cb;
         }
         
         .absent {
@@ -319,25 +324,38 @@
             // Assign teachers to classes
             let teacherIndex = 0;
             
-            for (let i = 0; i < timeBlocks.length; i += reliefDuration + 2) { // +2 for free periods
-                for (let j = 0; j < reliefDuration && i + j < timeBlocks.length; j++) {
-                    const timeSlotIndex = i + j;
+            // For each time slot that can start a relief period
+            for (let startBlock = 0; startBlock < timeBlocks.length; startBlock += reliefDuration + 2) {
+                // For each class
+                for (let classIndex = 0; classIndex < classes.length; classIndex++) {
+                    const className = classes[classIndex];
                     
-                    classes.forEach(className => {
-                        if (schedule[className][timeSlotIndex] === null) {
-                            schedule[className][timeSlotIndex] = availableTeachers[teacherIndex % availableTeachers.length];
-                            teacherIndex++;
+                    // Check if we can assign a teacher for the full relief duration
+                    let canAssign = true;
+                    for (let i = 0; i < reliefDuration; i++) {
+                        if (startBlock + i >= timeBlocks.length || schedule[className][startBlock + i] !== null) {
+                            canAssign = false;
+                            break;
                         }
-                    });
+                    }
+                    
+                    // If we can assign, assign the same teacher for all blocks in this relief period
+                    if (canAssign) {
+                        const teacher = availableTeachers[teacherIndex % availableTeachers.length];
+                        for (let i = 0; i < reliefDuration; i++) {
+                            schedule[className][startBlock + i] = teacher;
+                        }
+                        teacherIndex++;
+                    }
                 }
             }
             
             // Display the schedule
-            displaySchedule(schedule, timeBlocks, absentTeachers);
+            displaySchedule(schedule, timeBlocks, absentTeachers, reliefDuration);
         }
         
         // Display the schedule in a table
-        function displaySchedule(schedule, timeBlocks, absentTeachers) {
+        function displaySchedule(schedule, timeBlocks, absentTeachers, reliefDuration) {
             const scheduleContainer = document.getElementById('scheduleContainer');
             let html = `
                 <table>
@@ -364,7 +382,14 @@
                     let displayText = '';
                     
                     if (teacher) {
-                        cellClass = 'assigned';
+                        // Check if this is part of a consecutive assignment
+                        let isConsecutive = false;
+                        if (timeIndex > 0 && schedule[className][timeIndex - 1] === teacher) {
+                            isConsecutive = true;
+                            cellClass = 'consecutive';
+                        } else {
+                            cellClass = 'assigned';
+                        }
                         displayText = teacher;
                     } else {
                         cellClass = 'free-period';
@@ -383,6 +408,24 @@
             if (absentTeachers.length > 0) {
                 html += `<p class="error" style="margin-top: 15px;"><strong>Absent Teachers:</strong> ${absentTeachers.join(', ')}</p>`;
             }
+            
+            // Add legend
+            html += `
+                <div style="margin-top: 20px; display: flex; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 20px; height: 20px; background-color: #d4edda; margin-right: 5px; border: 1px solid #ddd;"></div>
+                        <span>Assigned Teacher</span>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 20px; height: 20px; background-color: #c3e6cb; margin-right: 5px; border: 1px solid #ddd;"></div>
+                        <span>Consecutive Assignment</span>
+                    </div>
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 20px; height: 20px; background-color: #e8f4fc; margin-right: 5px; border: 1px solid #ddd;"></div>
+                        <span>Free Period</span>
+                    </div>
+                </div>
+            `;
             
             scheduleContainer.innerHTML = html;
         }
