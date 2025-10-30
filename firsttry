@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Substitute Schedule Generator</title>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2ecc71;
+            --danger: #e74c3c;
+            --light: #f5f5f5;
+            --dark: #333;
+            --shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f0f2f5;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-weight: 600;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+        }
+        
+        .btn-secondary:hover {
+            background-color: #27ae60;
+        }
+        
+        .teachers-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .teacher-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: var(--light);
+            border-radius: 4px;
+        }
+        
+        .teacher-item input {
+            width: auto;
+            margin-right: 10px;
+        }
+        
+        .schedule-container {
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        th {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .time-block {
+            font-weight: bold;
+            background-color: #e8f4fc;
+        }
+        
+        .free-period {
+            background-color: #e8f4fc;
+        }
+        
+        .assigned {
+            background-color: #d4edda;
+        }
+        
+        .absent {
+            background-color: #f8d7da;
+            text-decoration: line-through;
+        }
+        
+        .error {
+            color: var(--danger);
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        
+        .success {
+            color: var(--secondary);
+            margin-top: 5px;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .teachers-list {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Teacher Substitute Schedule Generator</h1>
+            <p>Automatically generate teacher placements for relief periods</p>
+        </header>
+        
+        <div class="card">
+            <h2>Configuration</h2>
+            <div class="form-group">
+                <label for="reliefDuration">Relief Period Duration (in 30-minute blocks)</label>
+                <select id="reliefDuration">
+                    <option value="1">1 block (30 minutes)</option>
+                    <option value="2" selected>2 blocks (1 hour)</option>
+                    <option value="3">3 blocks (1.5 hours)</option>
+                    <option value="4">4 blocks (2 hours)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="startTime">Start Time</label>
+                <input type="time" id="startTime" value="08:00">
+            </div>
+            
+            <div class="form-group">
+                <label for="endTime">End Time</label>
+                <input type="time" id="endTime" value="15:00">
+            </div>
+            
+            <button id="generateBtn" class="btn-secondary">Generate Schedule</button>
+        </div>
+        
+        <div class="card">
+            <h2>Teachers</h2>
+            <p>Select teachers who are absent (will not be assigned):</p>
+            <div class="teachers-list" id="teachersList">
+                <!-- Teachers will be populated here -->
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Generated Schedule</h2>
+            <div class="schedule-container" id="scheduleContainer">
+                <p>No schedule generated yet. Configure settings and click "Generate Schedule".</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data - in a real application, this would come from a database
+        const teachers = [
+            "Mr. Ahmad", "Ms. Siti", "Mr. Raj", "Ms. Lim", "Mr. Tan", 
+            "Ms. Wong", "Mr. Kumar", "Ms. Lee", "Mr. Hassan", "Ms. Chan",
+            "Mr. Gopal", "Ms. Nor", "Mr. Singh", "Ms. Fong", "Mr. Yusof"
+        ];
+        
+        const classes = [
+            "Form 1A", "Form 1B", "Form 1C", "Form 1D", "Form 1E",
+            "Form 2A", "Form 2B", "Form 2C", "Form 2D", "Form 2E",
+            "Form 3A", "Form 3B", "Form 3C", "Form 3D", "Form 3E",
+            "Form 4A", "Form 4B", "Form 4C", "Form 4D",
+            "Form 5A", "Form 5B", "Form 5C", "Form 5D"
+        ];
+        
+        // Initialize the teachers list
+        function initializeTeachersList() {
+            const teachersList = document.getElementById('teachersList');
+            teachersList.innerHTML = '';
+            
+            teachers.forEach(teacher => {
+                const teacherItem = document.createElement('div');
+                teacherItem.className = 'teacher-item';
+                teacherItem.innerHTML = `
+                    <input type="checkbox" id="teacher-${teacher}" data-teacher="${teacher}">
+                    <label for="teacher-${teacher}">${teacher}</label>
+                `;
+                teachersList.appendChild(teacherItem);
+            });
+        }
+        
+        // Generate time blocks based on start and end time
+        function generateTimeBlocks() {
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            const start = new Date(`2000-01-01T${startTime}`);
+            const end = new Date(`2000-01-01T${endTime}`);
+            
+            const timeBlocks = [];
+            let currentTime = new Date(start);
+            
+            while (currentTime < end) {
+                const timeString = currentTime.toTimeString().substring(0, 5);
+                timeBlocks.push(timeString);
+                
+                // Add 30 minutes
+                currentTime.setMinutes(currentTime.getMinutes() + 30);
+            }
+            
+            return timeBlocks;
+        }
+        
+        // Get absent teachers
+        function getAbsentTeachers() {
+            const absentTeachers = [];
+            const checkboxes = document.querySelectorAll('#teachersList input[type="checkbox"]');
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    absentTeachers.push(checkbox.getAttribute('data-teacher'));
+                }
+            });
+            
+            return absentTeachers;
+        }
+        
+        // Get available teachers (not absent)
+        function getAvailableTeachers() {
+            const absentTeachers = getAbsentTeachers();
+            return teachers.filter(teacher => !absentTeachers.includes(teacher));
+        }
+        
+        // Generate schedule
+        function generateSchedule() {
+            const reliefDuration = parseInt(document.getElementById('reliefDuration').value);
+            const timeBlocks = generateTimeBlocks();
+            const availableTeachers = getAvailableTeachers();
+            const absentTeachers = getAbsentTeachers();
+            
+            if (availableTeachers.length === 0) {
+                alert('All teachers are marked as absent. Please make at least one teacher available.');
+                return;
+            }
+            
+            // Create schedule data structure
+            const schedule = {};
+            classes.forEach(className => {
+                schedule[className] = Array(timeBlocks.length).fill(null);
+            });
+            
+            // Assign teachers to classes
+            let teacherIndex = 0;
+            
+            for (let i = 0; i < timeBlocks.length; i += reliefDuration + 2) { // +2 for free periods
+                for (let j = 0; j < reliefDuration && i + j < timeBlocks.length; j++) {
+                    const timeSlotIndex = i + j;
+                    
+                    classes.forEach(className => {
+                        if (schedule[className][timeSlotIndex] === null) {
+                            schedule[className][timeSlotIndex] = availableTeachers[teacherIndex % availableTeachers.length];
+                            teacherIndex++;
+                        }
+                    });
+                }
+            }
+            
+            // Display the schedule
+            displaySchedule(schedule, timeBlocks, absentTeachers);
+        }
+        
+        // Display the schedule in a table
+        function displaySchedule(schedule, timeBlocks, absentTeachers) {
+            const scheduleContainer = document.getElementById('scheduleContainer');
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+            `;
+            
+            // Add class headers
+            classes.forEach(className => {
+                html += `<th>${className}</th>`;
+            });
+            
+            html += `</tr></thead><tbody>`;
+            
+            // Add time blocks and assignments
+            timeBlocks.forEach((time, timeIndex) => {
+                html += `<tr>`;
+                html += `<td class="time-block">${time}</td>`;
+                
+                classes.forEach(className => {
+                    const teacher = schedule[className][timeIndex];
+                    let cellClass = '';
+                    let displayText = '';
+                    
+                    if (teacher) {
+                        cellClass = 'assigned';
+                        displayText = teacher;
+                    } else {
+                        cellClass = 'free-period';
+                        displayText = 'Free';
+                    }
+                    
+                    html += `<td class="${cellClass}">${displayText}</td>`;
+                });
+                
+                html += `</tr>`;
+            });
+            
+            html += `</tbody></table>`;
+            
+            // Add absent teachers information
+            if (absentTeachers.length > 0) {
+                html += `<p class="error" style="margin-top: 15px;"><strong>Absent Teachers:</strong> ${absentTeachers.join(', ')}</p>`;
+            }
+            
+            scheduleContainer.innerHTML = html;
+        }
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeTeachersList();
+            
+            document.getElementById('generateBtn').addEventListener('click', function() {
+                generateSchedule();
+            });
+        });
+    </script>
+</body>
+</html>
